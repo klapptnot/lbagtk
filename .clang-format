@@ -1,0 +1,28 @@
+---
+Language: Cpp
+BasedOnStyle: Google
+IndentWidth: 2
+ColumnLimit: 128
+AccessModifierOffset: -4
+AllowShortFunctionsOnASingleLine: Empty
+BreakBeforeBraces: Attach
+NamespaceIndentation: All
+PointerAlignment: Left
+SortIncludes: true
+SpaceAfterTemplateKeyword: false
+SpaceBeforeParens: Always
+# SpaceBeforeParens: Custom
+# SpaceBeforeParensOptions:
+#   AfterControlStatements: true
+#   AfterForeachMacros: true
+#   AfterFunctionDeclarationName: true
+#   AfterFunctionDefinitionName: true
+#   AfterIfMacros: true
+#   AfterOverloadedOperator: true
+#   AfterPlacementOperator: true
+#   AfterRequiresInClause: true
+#   AfterRequiresInExpression: true
+#   BeforeNonEmptyParentheses: true
+
+TabWidth: 2
+UseTab: Never
