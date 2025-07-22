@@ -49,6 +49,22 @@ typedef struct {
 static const int WINDOW_WIDTH = 480;
 static const int WINDOW_HEIGHT = 180;
 
+bool fire_and_forget (const char *command_str) {
+  pid_t pid = fork ();
+  if (pid < 0) {
+    perror ("fork failed");
+    return false;
+  }
+
+  if (pid == 0) {
+    execl ("/bin/sh", "sh", "-c", command_str, (char *)NULL);
+    exit (1);
+  }
+
+  printf ("Command launched: %s (pid: %d)\n", command_str, pid);
+  return true;
+}
+
 GString *find_battery_path (const char *file_type) {
   GString *path = g_string_sized_new (64);
 
@@ -181,9 +197,9 @@ static void cb_secondary_btn (gpointer user_data) {
   AppCtx *app_ctx = (AppCtx *)user_data;
 
   app_ctx->data->hide4all = true;
-  int exitc = system (app_ctx->opts->btn_cmd);
+  bool did_exec = fire_and_forget (app_ctx->opts->btn_cmd);
 
-  if (exitc == 0) {
+  if (did_exec) {
     gtk_widget_set_visible (GTK_WIDGET (app_ctx->tree->window), FALSE);
     app_ctx->data->hide4all = true;
   }
@@ -337,7 +353,8 @@ static AppOpts *parse_arguments (int *argc, char ***argv, gboolean *will_daemoni
       {"daemon", 'D', 0, G_OPTION_ARG_NONE, will_daemonize, "Run as a background, dettached process", NULL},
       {"styles", 's', 0, G_OPTION_ARG_FILENAME, &opts->css_file, "Path to styles file", "FILE"},
       {"low", 'l', 0, G_OPTION_ARG_INT, &opts->low_lvl, "Low battery level (def: 20)", "LEVEL"},
-      {"risky", 'r', 0, G_OPTION_ARG_INT, &opts->risk_lvl, "Risky battery level, activating secondary button (def: 10)", "LEVEL"},
+      {"risky", 'r', 0, G_OPTION_ARG_INT, &opts->risk_lvl, "Risky battery level, activating secondary button (def: 10)",
+       "LEVEL"},
       {"btn", 'b', 0, G_OPTION_ARG_STRING, &opts->btn_str, "Secondary button text (def: 'Hibernate')", "STR"},
       {"btn-cmd", 'B', 0, G_OPTION_ARG_STRING, &opts->btn_cmd, "Secondary button command (def: 'systemctl hibernate')", "CMD"},
       {NULL}};
@@ -364,11 +381,11 @@ int main (int argc, char *argv[]) {
   AppOpts *opts = parse_arguments (&argc, &argv, &will_daemonize);
   if (!opts) return 1;
 
-  g_print ("Styles   : %s\n", opts->css_file);
-  g_print ("Low      : %d\n", opts->low_lvl);
-  g_print ("Critical : %d\n", opts->risk_lvl);
-  g_print ("Label    : %s\n", opts->btn_str);
-  g_print ("Command  : %s\n", opts->btn_cmd);
+  g_print ("CSS path: %s\n", opts->css_file);
+  g_print ("Low %%  : %d\n", opts->low_lvl);
+  g_print ("Risk %% : %d\n", opts->risk_lvl);
+  g_print ("Label   : %s\n", opts->btn_str);
+  g_print ("Command : %s\n", opts->btn_cmd);
 
   GtkApplication *app = gtk_application_new (GTK_APP_CLASS_OR_ID, G_APPLICATION_DEFAULT_FLAGS);
 
