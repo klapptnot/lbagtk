@@ -1,3 +1,4 @@
+#define _DEFAULT_SOURCE
 #include <gtk/gtk.h>
 #include <string.h>
 #include <unistd.h>
@@ -9,29 +10,33 @@
 #include "pango/pango-attributes.h"
 
 #define UNUSED __attribute__ ((unused))
-#define GTK_ID_APP_CLASS "xyz.gall.lgagtk"
+#define GTK_APP_CLASS_OR_ID "xyz.gall.lgagtk"
 #define DEFAULT_STYLES_PATH "~/.config/gall/lbagtk.css"
+#define DEFAULT_BUTTON_TEXT "Hibernate"
+#define DEFAULT_BUTTON_CMDL "systemctl hibernate"
 
 typedef struct {
   GString *bp_path;
   GString *bs_path;
   int percentage;
   bool is_charging;
-  bool hide4n;
-  bool hide4e;
+  bool hide4now;
+  bool hide4all;
 } AppData;
 
 typedef struct {
   GtkWindow *window;
-  GtkLabel *detail_lbl;
-  GtkWidget *close_btn;
-  GtkWidget *sleep_btn;
+  GtkLabel *lbl_close;
+  GtkWidget *btn_close;
+  GtkWidget *btn_2ndry;
 } AppTree;
 
 typedef struct {
-  char *styles_file;
-  int lowlvl;
-  int critlvl;
+  char *css_file;
+  char *btn_str;
+  char *btn_cmd;
+  int low_lvl;
+  int risk_lvl;
 } AppOpts;
 
 typedef struct {
@@ -128,19 +133,17 @@ static void load_css_styles (char *path) {
   g_object_unref (css_provider);
 }
 
-static gboolean timeout_callback (gpointer user_data) {
+static gboolean on_timeout_updates (gpointer user_data) {
   AppCtx *app_ctx = (AppCtx *)user_data;
   AppData *app_data = app_ctx->data;
 
   app_data->percentage = get_battery_percentage (app_data->bp_path->str);
   app_data->is_charging = is_battery_charging (app_data->bs_path->str);
 
-  // g_print("tick: %d -> %s\n", app_data->percentage, app_data->is_charging ? "true" : "false");
-
   return TRUE;
 }
 
-static gboolean idle_callback_loop (gpointer user_data) {
+static gboolean on_timeout_toggle (gpointer user_data) {
   AppCtx *app_ctx = (AppCtx *)user_data;
   AppData *app_data = app_ctx->data;
   AppTree *app_tree = app_ctx->tree;
@@ -148,58 +151,57 @@ static gboolean idle_callback_loop (gpointer user_data) {
 
   gboolean is_visible = gtk_widget_get_visible (GTK_WIDGET (app_tree->window));
 
-  if (app_data->percentage > app_opts->lowlvl || app_data->is_charging) {
+  if (app_data->percentage > app_opts->low_lvl || app_data->is_charging) {
     gtk_widget_set_visible (GTK_WIDGET (app_tree->window), FALSE);
-    app_data->hide4n = false;
-    app_data->hide4e = false;
+    app_data->hide4now = false;
+    app_data->hide4all = false;
     return G_SOURCE_CONTINUE;
   }
-  if ((app_data->hide4n && app_data->percentage > app_opts->critlvl) || app_data->hide4e) return G_SOURCE_CONTINUE;
+  if ((app_data->hide4now && app_data->percentage > app_opts->risk_lvl) || app_data->hide4all) return G_SOURCE_CONTINUE;
 
-  load_css_styles (app_ctx->opts->styles_file);
-
-  if (app_data->percentage > app_opts->critlvl)
-    gtk_widget_set_sensitive (GTK_WIDGET (app_tree->sleep_btn), FALSE);
+  if (app_data->percentage > app_opts->risk_lvl)
+    gtk_widget_set_sensitive (GTK_WIDGET (app_tree->btn_2ndry), FALSE);
   else
-    gtk_widget_set_sensitive (GTK_WIDGET (app_tree->sleep_btn), TRUE);
+    gtk_widget_set_sensitive (GTK_WIDGET (app_tree->btn_2ndry), TRUE);
 
   if (!is_visible) {
     gtk_widget_set_visible (GTK_WIDGET (app_tree->window), TRUE);
     gtk_window_present (GTK_WINDOW (app_tree->window));
-    gtk_widget_grab_focus (app_tree->close_btn);
+    gtk_widget_grab_focus (app_tree->btn_close);
+    load_css_styles (app_ctx->opts->css_file);
   }
 
-  gtk_label_set_text (GTK_LABEL (app_tree->detail_lbl),
+  gtk_label_set_text (GTK_LABEL (app_tree->lbl_close),
                       g_strdup_printf ("You may want to charge it soon. Current battery level: %d%%", app_data->percentage));
 
   return G_SOURCE_CONTINUE;
 }
 
-static void cb_sleep (gpointer user_data) {
+static void cb_secondary_btn (gpointer user_data) {
   AppCtx *app_ctx = (AppCtx *)user_data;
 
-  app_ctx->data->hide4e = true;
-  int exitc = system ("systemctl hibernate");
+  app_ctx->data->hide4all = true;
+  int exitc = system (app_ctx->opts->btn_cmd);
 
   if (exitc == 0) {
     gtk_widget_set_visible (GTK_WIDGET (app_ctx->tree->window), FALSE);
-    app_ctx->data->hide4e = true;
+    app_ctx->data->hide4all = true;
   }
 }
 
-static void cb_hide4n (gpointer user_data) {
+static void action_hide_contextual (gpointer user_data) {
   AppCtx *app_ctx = (AppCtx *)user_data;
 
-  if (app_ctx->data->hide4n || app_ctx->data->percentage <= app_ctx->opts->critlvl) app_ctx->data->hide4e = true;
+  if (app_ctx->data->hide4now || app_ctx->data->percentage <= app_ctx->opts->risk_lvl) app_ctx->data->hide4all = true;
 
-  app_ctx->data->hide4n = true;
+  app_ctx->data->hide4now = true;
   gtk_widget_set_visible (GTK_WIDGET (app_ctx->tree->window), FALSE);
 }
 
 gboolean on_key_pressed (UNUSED GtkEventControllerKey *controller, guint keyval, UNUSED guint keycode,
                          UNUSED GdkModifierType state, gpointer user_data) {
   if (keyval == GDK_KEY_Escape) {
-    cb_hide4n (user_data);
+    action_hide_contextual (user_data);
     return TRUE;
   }
   return FALSE;
@@ -215,26 +217,24 @@ static void on_activate (GtkApplication *app, gpointer user_data) {
   app_ctx->gapp = app;
   app_ctx->opts = (AppOpts *)user_data;
 
-  if (app_ctx->opts->styles_file) {
-    char *expanded_styles = path_userexpand (app_ctx->opts->styles_file);
-    g_free (app_ctx->opts->styles_file);
-    app_ctx->opts->styles_file = expanded_styles;
+  if (app_ctx->opts->css_file) {
+    char *expanded_styles = path_userexpand (app_ctx->opts->css_file);
+    g_free (app_ctx->opts->css_file);
+    app_ctx->opts->css_file = expanded_styles;
   }
-
-  PangoAttrList *h1_attr = pango_attr_list_new ();
-  pango_attr_list_insert (h1_attr, pango_attr_size_new (16 * PANGO_SCALE));
 
   app_data->bs_path = find_battery_path ("status");
   app_data->bp_path = find_battery_path ("capacity");
   app_data->percentage = 100;
-  app_data->hide4n = false;
-  app_data->hide4e = false;
+  app_data->is_charging = false;
+  app_data->hide4now = false;
+  app_data->hide4all = false;
 
   if (!app_data->bs_path->len || !app_data->bp_path->len) {
     g_print ("No battery file found, exiting...\n");
     g_string_free (app_data->bs_path, TRUE);
     g_string_free (app_data->bp_path, TRUE);
-    g_free (app_ctx->opts->styles_file);
+    g_free (app_ctx->opts->css_file);
     g_free (app_ctx->opts);
     g_free (app_ctx->tree);
     g_free (app_ctx->data);
@@ -244,7 +244,10 @@ static void on_activate (GtkApplication *app, gpointer user_data) {
     return;
   }
 
-  load_css_styles (app_ctx->opts->styles_file);
+  load_css_styles (app_ctx->opts->css_file);
+
+  PangoAttrList *h1_attr = pango_attr_list_new ();
+  pango_attr_list_insert (h1_attr, pango_attr_size_new (16 * PANGO_SCALE));
 
   app_tree->window = GTK_WINDOW (gtk_application_window_new (app));
   GtkWindow *window = app_tree->window;
@@ -265,17 +268,17 @@ static void on_activate (GtkApplication *app, gpointer user_data) {
   gtk_label_set_xalign (GTK_LABEL (notice_label), 0.0);
   gtk_widget_add_css_class (notice_label, "battery-alert-header");
 
-  app_tree->detail_lbl = GTK_LABEL (gtk_label_new ("None"));
-  GtkWidget *label_info = GTK_WIDGET (app_tree->detail_lbl);
+  app_tree->lbl_close = GTK_LABEL (gtk_label_new ("None"));
+  GtkWidget *label_info = GTK_WIDGET (app_tree->lbl_close);
   gtk_label_set_xalign (GTK_LABEL (label_info), 0.0);
   gtk_widget_add_css_class (label_info, "battery-alert-info");
 
-  app_tree->sleep_btn = gtk_button_new_with_label ("Hibernate");
-  GtkWidget *sleep_btn = app_tree->sleep_btn;
+  app_tree->btn_2ndry = gtk_button_new_with_label (app_ctx->opts->btn_str);
+  GtkWidget *sleep_btn = app_tree->btn_2ndry;
   gtk_widget_add_css_class (sleep_btn, "battery-alert-hibernate-btn");
 
-  app_tree->close_btn = gtk_button_new_with_label ("Got it!");
-  GtkWidget *close_btn = app_tree->close_btn;
+  app_tree->btn_close = gtk_button_new_with_label ("Got it!");
+  GtkWidget *close_btn = app_tree->btn_close;
   gtk_widget_add_css_class (close_btn, "battery-alert-close-btn");
 
   GtkWidget *box_main = gtk_box_new (GTK_ORIENTATION_VERTICAL, 10);
@@ -301,37 +304,43 @@ static void on_activate (GtkApplication *app, gpointer user_data) {
 
   gtk_window_set_child (GTK_WINDOW (window), box_main);
 
-  g_signal_connect_swapped (sleep_btn, "clicked", G_CALLBACK (cb_sleep), app_ctx);
-  g_signal_connect_swapped (close_btn, "clicked", G_CALLBACK (cb_hide4n), app_ctx);
+  g_signal_connect_swapped (sleep_btn, "clicked", G_CALLBACK (cb_secondary_btn), app_ctx);
+  g_signal_connect_swapped (close_btn, "clicked", G_CALLBACK (action_hide_contextual), app_ctx);
 
-  g_idle_add (idle_callback_loop, app_ctx);
-  g_timeout_add (1000, (GSourceFunc)timeout_callback, app_ctx);
+  g_timeout_add (1000, (GSourceFunc)on_timeout_updates, app_ctx);
+  g_timeout_add (1000, (GSourceFunc)on_timeout_toggle, app_ctx);
 
   GtkEventController *key_controller = gtk_event_controller_key_new ();
   gtk_widget_add_controller (GTK_WIDGET (window), key_controller);
   g_signal_connect (key_controller, "key-pressed", G_CALLBACK (on_key_pressed), app_ctx);
 
-  g_signal_connect_swapped (window, "close-request", G_CALLBACK (cb_hide4n), app_ctx);
+  g_signal_connect_swapped (window, "close-request", G_CALLBACK (action_hide_contextual), app_ctx);
 
   gtk_window_present (GTK_WINDOW (window));
   gtk_widget_set_visible (GTK_WIDGET (window), FALSE);
 }
 
-static AppOpts *parse_arguments (int *argc, char ***argv) {
+static AppOpts *parse_arguments (int *argc, char ***argv, gboolean *will_daemonize) {
   AppOpts *opts = g_new0 (AppOpts, 1);
   GError *error = NULL;
   GOptionContext *context;
 
-  opts->styles_file = g_strdup (DEFAULT_STYLES_PATH);
-  opts->lowlvl = 20;
-  opts->critlvl = 10;
+  opts->css_file = g_strdup (DEFAULT_STYLES_PATH);
+  opts->btn_str = g_strdup (DEFAULT_BUTTON_TEXT);
+  opts->btn_cmd = g_strdup (DEFAULT_BUTTON_CMDL);
+  opts->low_lvl = 20;
+  opts->risk_lvl = 10;
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-  GOptionEntry entries[] = {{"styles", 's', 0, G_OPTION_ARG_FILENAME, &opts->styles_file, "Path to styles file", "FILE"},
-                            {"low", 'l', 0, G_OPTION_ARG_INT, &opts->lowlvl, "Low battery level (def: 20)", "LEVEL"},
-                            {"critical", 'C', 0, G_OPTION_ARG_INT, &opts->critlvl, "Critical battery level (def: 10)", "LEVEL"},
-                            {NULL}};  // this
+  GOptionEntry entries[] = {
+      {"daemon", 'D', 0, G_OPTION_ARG_NONE, will_daemonize, "Run as a background, dettached process", NULL},
+      {"styles", 's', 0, G_OPTION_ARG_FILENAME, &opts->css_file, "Path to styles file", "FILE"},
+      {"low", 'l', 0, G_OPTION_ARG_INT, &opts->low_lvl, "Low battery level (def: 20)", "LEVEL"},
+      {"risky", 'r', 0, G_OPTION_ARG_INT, &opts->risk_lvl, "Risky battery level, activating secondary button (def: 10)", "LEVEL"},
+      {"btn", 'b', 0, G_OPTION_ARG_STRING, &opts->btn_str, "Secondary button text (def: 'Hibernate')", "STR"},
+      {"btn-cmd", 'B', 0, G_OPTION_ARG_STRING, &opts->btn_cmd, "Secondary button command (def: 'systemctl hibernate')", "CMD"},
+      {NULL}};
 #pragma GCC diagnostic pop
 
   context = g_option_context_new ("- Low battery notifier");
@@ -341,7 +350,7 @@ static AppOpts *parse_arguments (int *argc, char ***argv) {
     g_print ("Option parsing failed: %s\n", error->message);
     g_error_free (error);
     g_option_context_free (context);
-    g_free (opts->styles_file);
+    g_free (opts->css_file);
     g_free (opts);
     return NULL;
   }
@@ -351,16 +360,25 @@ static AppOpts *parse_arguments (int *argc, char ***argv) {
 }
 
 int main (int argc, char *argv[]) {
-  AppOpts *opts = parse_arguments (&argc, &argv);
+  gboolean will_daemonize = FALSE;
+  AppOpts *opts = parse_arguments (&argc, &argv, &will_daemonize);
   if (!opts) return 1;
 
-  if (opts->styles_file) g_print ("Styles   : %s\n", opts->styles_file);
-  g_print ("Low      : %d\n", opts->lowlvl);
-  g_print ("Critical : %d\n", opts->critlvl);
+  g_print ("Styles   : %s\n", opts->css_file);
+  g_print ("Low      : %d\n", opts->low_lvl);
+  g_print ("Critical : %d\n", opts->risk_lvl);
+  g_print ("Label    : %s\n", opts->btn_str);
+  g_print ("Command  : %s\n", opts->btn_cmd);
 
-  GtkApplication *app = gtk_application_new (GTK_ID_APP_CLASS, G_APPLICATION_DEFAULT_FLAGS);
+  GtkApplication *app = gtk_application_new (GTK_APP_CLASS_OR_ID, G_APPLICATION_DEFAULT_FLAGS);
 
   g_signal_connect (app, "activate", G_CALLBACK (on_activate), opts);
+
+  if (will_daemonize)
+    if (daemon (0, 0) == -1) {
+      perror ("daemon()");
+      exit (EXIT_FAILURE);
+    }
 
   int status = g_application_run (G_APPLICATION (app), argc, argv);
   g_object_unref (app);
