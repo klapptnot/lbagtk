@@ -143,8 +143,11 @@ static void load_css_styles (char *path) {
 
   gtk_css_provider_load_from_path (css_provider, path);
 
-  gtk_style_context_add_provider_for_display (gdk_display_get_default (), GTK_STYLE_PROVIDER (css_provider),
-                                              GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+  gtk_style_context_add_provider_for_display (
+      gdk_display_get_default (),
+      GTK_STYLE_PROVIDER (css_provider),
+      GTK_STYLE_PROVIDER_PRIORITY_APPLICATION
+  );
 
   g_object_unref (css_provider);
 }
@@ -173,7 +176,9 @@ static gboolean on_timeout_toggle (gpointer user_data) {
     app_data->hide4all = false;
     return G_SOURCE_CONTINUE;
   }
-  if ((app_data->hide4now && app_data->percentage > app_opts->risk_lvl) || app_data->hide4all) return G_SOURCE_CONTINUE;
+  if ((app_data->hide4now && app_data->percentage > app_opts->risk_lvl)
+      || app_data->hide4all)
+    return G_SOURCE_CONTINUE;
 
   if (app_data->percentage > app_opts->risk_lvl)
     gtk_widget_set_sensitive (GTK_WIDGET (app_tree->btn_2ndry), FALSE);
@@ -187,8 +192,13 @@ static gboolean on_timeout_toggle (gpointer user_data) {
     load_css_styles (app_ctx->opts->css_file);
   }
 
-  gtk_label_set_text (GTK_LABEL (app_tree->lbl_close),
-                      g_strdup_printf ("You may want to charge it soon. Current battery level: %d%%", app_data->percentage));
+  gtk_label_set_text (
+      GTK_LABEL (app_tree->lbl_close),
+      g_strdup_printf (
+          "You may want to charge it soon. Current battery level: %d%%",
+          app_data->percentage
+      )
+  );
 
   return G_SOURCE_CONTINUE;
 }
@@ -208,14 +218,20 @@ static void cb_secondary_btn (gpointer user_data) {
 static void action_hide_contextual (gpointer user_data) {
   AppCtx *app_ctx = (AppCtx *)user_data;
 
-  if (app_ctx->data->hide4now || app_ctx->data->percentage <= app_ctx->opts->risk_lvl) app_ctx->data->hide4all = true;
+  if (app_ctx->data->hide4now || app_ctx->data->percentage <= app_ctx->opts->risk_lvl)
+    app_ctx->data->hide4all = true;
 
   app_ctx->data->hide4now = true;
   gtk_widget_set_visible (GTK_WIDGET (app_ctx->tree->window), FALSE);
 }
 
-gboolean on_key_pressed (UNUSED GtkEventControllerKey *controller, guint keyval, UNUSED guint keycode,
-                         UNUSED GdkModifierType state, gpointer user_data) {
+gboolean on_key_pressed (
+    UNUSED GtkEventControllerKey *controller,
+    guint keyval,
+    UNUSED guint keycode,
+    UNUSED GdkModifierType state,
+    gpointer user_data
+) {
   if (keyval == GDK_KEY_Escape) {
     action_hide_contextual (user_data);
     return TRUE;
@@ -321,7 +337,12 @@ static void on_activate (GtkApplication *app, gpointer user_data) {
   gtk_window_set_child (GTK_WINDOW (window), box_main);
 
   g_signal_connect_swapped (sleep_btn, "clicked", G_CALLBACK (cb_secondary_btn), app_ctx);
-  g_signal_connect_swapped (close_btn, "clicked", G_CALLBACK (action_hide_contextual), app_ctx);
+  g_signal_connect_swapped (
+      close_btn,
+      "clicked",
+      G_CALLBACK (action_hide_contextual),
+      app_ctx
+  );
 
   g_timeout_add (1000, (GSourceFunc)on_timeout_updates, app_ctx);
   g_timeout_add (1000, (GSourceFunc)on_timeout_toggle, app_ctx);
@@ -330,7 +351,12 @@ static void on_activate (GtkApplication *app, gpointer user_data) {
   gtk_widget_add_controller (GTK_WIDGET (window), key_controller);
   g_signal_connect (key_controller, "key-pressed", G_CALLBACK (on_key_pressed), app_ctx);
 
-  g_signal_connect_swapped (window, "close-request", G_CALLBACK (action_hide_contextual), app_ctx);
+  g_signal_connect_swapped (
+      window,
+      "close-request",
+      G_CALLBACK (action_hide_contextual),
+      app_ctx
+  );
 
   gtk_window_present (GTK_WINDOW (window));
   gtk_widget_set_visible (GTK_WIDGET (window), FALSE);
@@ -349,15 +375,50 @@ static AppOpts *parse_arguments (int *argc, char ***argv, gboolean *will_daemoni
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-  GOptionEntry entries[] = {
-      {"daemon", 'D', 0, G_OPTION_ARG_NONE, will_daemonize, "Run as a background, dettached process", NULL},
-      {"styles", 's', 0, G_OPTION_ARG_FILENAME, &opts->css_file, "Path to styles file", "FILE"},
-      {"low", 'l', 0, G_OPTION_ARG_INT, &opts->low_lvl, "Low battery level (def: 20)", "LEVEL"},
-      {"risky", 'r', 0, G_OPTION_ARG_INT, &opts->risk_lvl, "Risky battery level, activating secondary button (def: 10)",
-       "LEVEL"},
-      {"btn", 'b', 0, G_OPTION_ARG_STRING, &opts->btn_str, "Secondary button text (def: 'Hibernate')", "STR"},
-      {"btn-cmd", 'B', 0, G_OPTION_ARG_STRING, &opts->btn_cmd, "Secondary button command (def: 'systemctl hibernate')", "CMD"},
-      {NULL}};
+  GOptionEntry entries[]
+      = {{"daemon",
+          'D',
+          0,
+          G_OPTION_ARG_NONE,
+          will_daemonize,
+          "Run as a background, dettached process",
+          NULL},
+         {"styles",
+          's',
+          0,
+          G_OPTION_ARG_FILENAME,
+          &opts->css_file,
+          "Path to styles file",
+          "FILE"},
+         {"low",
+          'l',
+          0,
+          G_OPTION_ARG_INT,
+          &opts->low_lvl,
+          "Low battery level (def: 20)",
+          "LEVEL"},
+         {"risky",
+          'r',
+          0,
+          G_OPTION_ARG_INT,
+          &opts->risk_lvl,
+          "Risky battery level, activating secondary button (def: 10)",
+          "LEVEL"},
+         {"btn",
+          'b',
+          0,
+          G_OPTION_ARG_STRING,
+          &opts->btn_str,
+          "Secondary button text (def: 'Hibernate')",
+          "STR"},
+         {"btn-cmd",
+          'B',
+          0,
+          G_OPTION_ARG_STRING,
+          &opts->btn_cmd,
+          "Secondary button command (def: 'systemctl hibernate')",
+          "CMD"},
+         {NULL}};
 #pragma GCC diagnostic pop
 
   context = g_option_context_new ("- Low battery notifier");
@@ -387,7 +448,8 @@ int main (int argc, char *argv[]) {
   g_print ("Label   : %s\n", opts->btn_str);
   g_print ("Command : %s\n", opts->btn_cmd);
 
-  GtkApplication *app = gtk_application_new (GTK_APP_CLASS_OR_ID, G_APPLICATION_DEFAULT_FLAGS);
+  GtkApplication *app
+      = gtk_application_new (GTK_APP_CLASS_OR_ID, G_APPLICATION_DEFAULT_FLAGS);
 
   g_signal_connect (app, "activate", G_CALLBACK (on_activate), opts);
 

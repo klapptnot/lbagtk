@@ -2,10 +2,10 @@
 Language: Cpp
 BasedOnStyle: Google
 IndentWidth: 2
-ColumnLimit: 128
-AccessModifierOffset: -4
+ColumnLimit: 92
 AllowShortFunctionsOnASingleLine: Empty
 BreakBeforeBraces: Attach
+BreakBeforeBinaryOperators: All
 NamespaceIndentation: All
 PointerAlignment: Left
 SortIncludes: true
@@ -23,6 +23,11 @@ SpaceBeforeParens: Always
 #   AfterRequiresInClause: true
 #   AfterRequiresInExpression: true
 #   BeforeNonEmptyParentheses: true
+BinPackParameters: false
+BinPackArguments: false
+AlignAfterOpenBracket: BlockIndent
+AllowAllParametersOfDeclarationOnNextLine: true
+AllowAllArgumentsOnNextLine: false
 
 TabWidth: 2
 UseTab: Never
