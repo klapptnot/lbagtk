@@ -36,6 +36,12 @@ BUILD_DIR := $(PHOME)/build
 .PHONY: all
 all: release
 
+.PHONY: install
+install: release
+	@echo "Moving to /usr/bin/lbagtk..."
+	sudo mv ./build/release /usr/bin/lbagtk
+	@echo "Installation complete! Run with: lbagtk"
+
 .PHONY: run
 run: debug
 	@echo "Running $(DEFAULT_DEBUG_TARGET)..."
