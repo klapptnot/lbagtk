@@ -192,13 +192,12 @@ static gboolean on_timeout_toggle (gpointer user_data) {
     load_css_styles (app_ctx->opts->css_file);
   }
 
-  gtk_label_set_text (
-      GTK_LABEL (app_tree->lbl_close),
-      g_strdup_printf (
-          "You may want to charge it soon. Current battery level: %d%%",
-          app_data->percentage
-      )
+  char *battery_text = g_strdup_printf(
+    "You may want to charge it soon. Current battery level: %d%%",
+    app_data->percentage
   );
+  gtk_label_set_text(GTK_LABEL(app_tree->lbl_close), battery_text);
+  g_free(battery_text);
 
   return G_SOURCE_CONTINUE;
 }
@@ -266,9 +265,13 @@ static void on_activate (GtkApplication *app, gpointer user_data) {
     g_print ("No battery file found, exiting...\n");
     g_string_free (app_data->bs_path, TRUE);
     g_string_free (app_data->bp_path, TRUE);
-    g_free (app_ctx->opts->css_file);
-    g_free (app_ctx->opts);
     g_free (app_ctx->tree);
+    g_free (app_ctx->opts->css_file);
+    g_free (app_ctx->opts->btn_str);
+    g_free (app_ctx->opts->btn_cmd);
+    g_free (app_ctx->opts);
+    g_free (app_ctx->data->bs_path);
+    g_free (app_ctx->data->bp_path);
     g_free (app_ctx->data);
     g_free (app_ctx);
 
@@ -300,7 +303,7 @@ static void on_activate (GtkApplication *app, gpointer user_data) {
   gtk_label_set_xalign (GTK_LABEL (notice_label), 0.0);
   gtk_widget_add_css_class (notice_label, "battery-alert-header");
 
-  app_tree->lbl_close = GTK_LABEL (gtk_label_new ("None"));
+  app_tree->lbl_close = GTK_LABEL (gtk_label_new (""));
   GtkWidget *label_info = GTK_WIDGET (app_tree->lbl_close);
   gtk_label_set_xalign (GTK_LABEL (label_info), 0.0);
   gtk_widget_add_css_class (label_info, "battery-alert-info");
@@ -429,6 +432,8 @@ static AppOpts *parse_arguments (int *argc, char ***argv, gboolean *will_daemoni
     g_error_free (error);
     g_option_context_free (context);
     g_free (opts->css_file);
+    g_free (opts->btn_str);
+    g_free (opts->btn_cmd);
     g_free (opts);
     return NULL;
   }
