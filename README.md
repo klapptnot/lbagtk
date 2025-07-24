@@ -70,7 +70,7 @@ make install
 
 ### CSS Customization
 
-The application supports full CSS theming. gtk4, `:root { ... }` and `var(--name)` are available.
+The application supports CSS theming. With gtk4, `:root { ... }` and `var(--name)` are available.
 Create a CSS file (default: `~/.config/gall/lbagtk.css`) with these classes:
 
 ```css
@@ -136,7 +136,7 @@ The application automatically scans `/sys/class/power_supply/BAT0` through `/sys
 - **User dismissal**: Window hides temporarily (low ➜ risk) or permanently after second dismiss
 
 ### Process Management
-The secondary action button uses `fork()` and `execl()` to launch commands without blocking the main applicationa
+The secondary action button uses `fork()` and `execl()` to launch commands without blocking the main application
 
 ## 🐛 Troubleshooting
 
