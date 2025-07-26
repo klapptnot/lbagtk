@@ -1,16 +1,19 @@
 PROJECT := lbagtk
 CC := clang
-TARGETS := main
 CSTD := c23
 
 PHOME := $(shell pwd)
 INCLUDE_DIRS := -I$(PHOME)/include -I$(PHOME)/src
 
+SOURCES := src/main.c src/arg_parser.c
+
 COMMON_CFLAGS := -std=$(CSTD) \
 	-Wall \
 	-Wextra \
 	-pedantic \
-	$(shell pkg-config --cflags --libs gtk4)
+	$(shell pkg-config --cflags gtk4)
+
+LIBS := $(shell pkg-config --libs gtk4)
 
 # -01 needed with -D_FORTIFY_SOURCE for <features.h>
 DEBUG_CFLAGS := $(COMMON_CFLAGS) -g \
@@ -33,43 +36,59 @@ RELEASE_LDFLAGS := -s \
 
 BUILD_DIR := $(PHOME)/build
 
+# Object files
+DEBUG_OBJECTS := $(SOURCES:src/%.c=$(BUILD_DIR)/debug/%.o)
+RELEASE_OBJECTS := $(SOURCES:src/%.c=$(BUILD_DIR)/release/%.o)
+
 .PHONY: all
 all: release
 
 .PHONY: install
 install: release
 	@echo "Moving to /usr/bin/lbagtk..."
-	sudo mv ./build/release /usr/bin/lbagtk
+	sudo mv ./build/$(PROJECT) /usr/bin/lbagtk
 	@echo "Installation complete! Run with: lbagtk"
 
 .PHONY: run
 run: debug
 	@echo "Running $(DEFAULT_DEBUG_TARGET)..."
-	$(foreach target, $(TARGETS), $(BUILD_DIR)/$(target)_debug $(filter-out $@,$(MAKECMDGOALS));)
+	@exec $(BUILD_DIR)/$(PROJECT)_debug $(filter-out $@,$(MAKECMDGOALS))
 
 .PHONY: rund
 rund: debug
 	@echo "Running target with GTK debugger $(DEFAULT_DEBUG_TARGET)..."
-	$(foreach target, $(TARGETS), GTK_DEBUG=interactive $(BUILD_DIR)/$(target)_debug;)
+	@GTK_DEBUG=interactive exec $(BUILD_DIR)/$(PROJECT)_debug;
 
 .PHONY: debug
-debug: $(addprefix $(BUILD_DIR)/, $(addsuffix _debug, $(TARGETS)))
+debug: $(addprefix $(BUILD_DIR)/, $(addsuffix _debug, $(PROJECT)))
 
-$(BUILD_DIR)/%_debug: src/%.c
+# Debug executable linking
+$(BUILD_DIR)/%_debug: $(DEBUG_OBJECTS)
 	@mkdir -p $(BUILD_DIR)
-	$(CC) $(DEBUG_CFLAGS) $(INCLUDE_DIRS) $< $(LIB_DIRS) $(LIBS) $(DEBUG_LDFLAGS) -o $@
+	$(CC) $(DEBUG_OBJECTS) $(LIBS) $(DEBUG_LDFLAGS) -o $@
+
+# Debug object files
+$(BUILD_DIR)/debug/%.o: src/%.c
+	@mkdir -p $(BUILD_DIR)/debug
+	$(CC) $(DEBUG_CFLAGS) $(INCLUDE_DIRS) -c $< -o $@
 
 .PHONY: release
-release: $(addprefix $(BUILD_DIR)/, $(TARGETS))
+release: $(addprefix $(BUILD_DIR)/, $(PROJECT))
 
-$(BUILD_DIR)/%: src/%.c
+# Release executable linking
+$(BUILD_DIR)/%: $(RELEASE_OBJECTS)
 	@mkdir -p $(BUILD_DIR)
-	$(CC) $(RELEASE_CFLAGS) $(INCLUDE_DIRS) $< $(LIB_DIRS) $(LIBS) $(RELEASE_LDFLAGS) -o $@
+	$(CC) $(RELEASE_OBJECTS) $(LIBS) $(RELEASE_LDFLAGS) -o $@
+
+# Release object files
+$(BUILD_DIR)/release/%.o: src/%.c
+	@mkdir -p $(BUILD_DIR)/release
+	$(CC) $(RELEASE_CFLAGS) $(INCLUDE_DIRS) -c $< -o $@
 
 .PHONY: clean
 clean:
 	rm -rf $(BUILD_DIR)
 
-# This prevents make from trying to build the args as targets
+# This prevents make from trying to build the args as PROJECT
 %:
 	@:

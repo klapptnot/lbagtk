@@ -3,17 +3,10 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "gio/gio.h"
-#include "glib.h"
-#include "glibconfig.h"
-#include "gtk/gtkshortcut.h"
-#include "pango/pango-attributes.h"
+#include "arg_parser.h"
 
 #define UNUSED __attribute__ ((unused))
 #define GTK_APP_CLASS_OR_ID "xyz.gall.lgagtk"
-#define DEFAULT_STYLES_PATH "~/.config/gall/lbagtk.css"
-#define DEFAULT_BUTTON_TEXT "Hibernate"
-#define DEFAULT_BUTTON_CMDL "systemctl hibernate"
 
 typedef struct {
   GString *bp_path;
@@ -30,14 +23,6 @@ typedef struct {
   GtkWidget *btn_close;
   GtkWidget *btn_2ndry;
 } AppTree;
-
-typedef struct {
-  char *css_file;
-  char *btn_str;
-  char *btn_cmd;
-  int low_lvl;
-  int risk_lvl;
-} AppOpts;
 
 typedef struct {
   AppData *data;
@@ -192,12 +177,12 @@ static gboolean on_timeout_toggle (gpointer user_data) {
     load_css_styles (app_ctx->opts->css_file);
   }
 
-  char *battery_text = g_strdup_printf(
-    "You may want to charge it soon. Current battery level: %d%%",
-    app_data->percentage
+  char *battery_text = g_strdup_printf (
+      "You may want to charge it soon. Current battery level: %d%%",
+      app_data->percentage
   );
-  gtk_label_set_text(GTK_LABEL(app_tree->lbl_close), battery_text);
-  g_free(battery_text);
+  gtk_label_set_text (GTK_LABEL (app_tree->lbl_close), battery_text);
+  g_free (battery_text);
 
   return G_SOURCE_CONTINUE;
 }
@@ -365,106 +350,32 @@ static void on_activate (GtkApplication *app, gpointer user_data) {
   gtk_widget_set_visible (GTK_WIDGET (window), FALSE);
 }
 
-static AppOpts *parse_arguments (int *argc, char ***argv, gboolean *will_daemonize) {
-  AppOpts *opts = g_new0 (AppOpts, 1);
-  GError *error = NULL;
-  GOptionContext *context;
-
-  opts->css_file = g_strdup (DEFAULT_STYLES_PATH);
-  opts->btn_str = g_strdup (DEFAULT_BUTTON_TEXT);
-  opts->btn_cmd = g_strdup (DEFAULT_BUTTON_CMDL);
-  opts->low_lvl = 20;
-  opts->risk_lvl = 10;
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-  GOptionEntry entries[]
-      = {{"daemon",
-          'D',
-          0,
-          G_OPTION_ARG_NONE,
-          will_daemonize,
-          "Run as a background, dettached process",
-          NULL},
-         {"styles",
-          's',
-          0,
-          G_OPTION_ARG_FILENAME,
-          &opts->css_file,
-          "Path to styles file",
-          "FILE"},
-         {"low",
-          'l',
-          0,
-          G_OPTION_ARG_INT,
-          &opts->low_lvl,
-          "Low battery level (def: 20)",
-          "LEVEL"},
-         {"risky",
-          'r',
-          0,
-          G_OPTION_ARG_INT,
-          &opts->risk_lvl,
-          "Risky battery level, activating secondary button (def: 10)",
-          "LEVEL"},
-         {"btn",
-          'b',
-          0,
-          G_OPTION_ARG_STRING,
-          &opts->btn_str,
-          "Secondary button text (def: 'Hibernate')",
-          "STR"},
-         {"btn-cmd",
-          'B',
-          0,
-          G_OPTION_ARG_STRING,
-          &opts->btn_cmd,
-          "Secondary button command (def: 'systemctl hibernate')",
-          "CMD"},
-         {NULL}};
-#pragma GCC diagnostic pop
-
-  context = g_option_context_new ("- Low battery notifier");
-  g_option_context_add_main_entries (context, entries, NULL);
-
-  if (!g_option_context_parse (context, argc, argv, &error)) {
-    g_print ("Option parsing failed: %s\n", error->message);
-    g_error_free (error);
-    g_option_context_free (context);
-    g_free (opts->css_file);
-    g_free (opts->btn_str);
-    g_free (opts->btn_cmd);
-    g_free (opts);
-    return NULL;
-  }
-
-  g_option_context_free (context);
-  return opts;
-}
-
 int main (int argc, char *argv[]) {
-  gboolean will_daemonize = FALSE;
-  AppOpts *opts = parse_arguments (&argc, &argv, &will_daemonize);
+  AppOpts *opts = parse_arguments (argc, argv);
   if (!opts) return 1;
 
-  g_print ("CSS path: %s\n", opts->css_file);
-  g_print ("Low %%  : %d\n", opts->low_lvl);
-  g_print ("Risk %% : %d\n", opts->risk_lvl);
-  g_print ("Label   : %s\n", opts->btn_str);
-  g_print ("Command : %s\n", opts->btn_cmd);
+#define _(k, v) "  \x1b[38;5;229m" k "\x1b[0m ➜ \x1b[38;5;231m" v "\x1b[0m\n"
+  printf ("\x1b[38;5;87mConfiguration\x1b[0m:\n");
+  printf (_ ("Daemon         ", "%s"), opts->daemon ? "yes" : "no");
+  printf (_ ("CSS File       ", "%s"), opts->css_file);
+  printf (_ ("Low Level      ", "%d%%"), opts->low_lvl);
+  printf (_ ("Risk Level     ", "%d%%"), opts->risk_lvl);
+  printf (_ ("Button Text    ", "%s"), opts->btn_str);
+  printf (_ ("Button Command ", "%s"), opts->btn_cmd);
+#undef _
 
   GtkApplication *app
       = gtk_application_new (GTK_APP_CLASS_OR_ID, G_APPLICATION_DEFAULT_FLAGS);
 
   g_signal_connect (app, "activate", G_CALLBACK (on_activate), opts);
 
-  if (will_daemonize)
+  if (opts->daemon)
     if (daemon (0, 0) == -1) {
       perror ("daemon()");
       exit (EXIT_FAILURE);
     }
 
-  int status = g_application_run (G_APPLICATION (app), argc, argv);
+  int status = g_application_run (G_APPLICATION (app), 0, NULL);
   g_object_unref (app);
   return status;
 }
