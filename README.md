@@ -93,7 +93,7 @@ Create a CSS file (default: `~/.config/gall/lbagtk.css`) with these classes:
 }
 
 /* Action button (hibernate/suspend) */
-.battery-alert-hibernate-btn {
+.battery-alert-action-btn {
     background: #ff6b6b;
     color: white;
     border-radius: 6px;

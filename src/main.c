@@ -21,7 +21,7 @@ typedef struct {
   GtkWindow *window;
   GtkLabel *lbl_close;
   GtkWidget *btn_close;
-  GtkWidget *btn_2ndry;
+  GtkWidget *action_btn;
 } AppTree;
 
 typedef struct {
@@ -166,9 +166,9 @@ static gboolean on_timeout_toggle (gpointer user_data) {
     return G_SOURCE_CONTINUE;
 
   if (app_data->percentage > app_opts->risk_lvl)
-    gtk_widget_set_sensitive (GTK_WIDGET (app_tree->btn_2ndry), FALSE);
+    gtk_widget_set_sensitive (GTK_WIDGET (app_tree->action_btn), FALSE);
   else
-    gtk_widget_set_sensitive (GTK_WIDGET (app_tree->btn_2ndry), TRUE);
+    gtk_widget_set_sensitive (GTK_WIDGET (app_tree->action_btn), TRUE);
 
   if (!is_visible) {
     gtk_widget_set_visible (GTK_WIDGET (app_tree->window), TRUE);
@@ -293,9 +293,9 @@ static void on_activate (GtkApplication *app, gpointer user_data) {
   gtk_label_set_xalign (GTK_LABEL (label_info), 0.0);
   gtk_widget_add_css_class (label_info, "battery-alert-info");
 
-  app_tree->btn_2ndry = gtk_button_new_with_label (app_ctx->opts->btn_str);
-  GtkWidget *sleep_btn = app_tree->btn_2ndry;
-  gtk_widget_add_css_class (sleep_btn, "battery-alert-hibernate-btn");
+  app_tree->action_btn = gtk_button_new_with_label (app_ctx->opts->btn_str);
+  GtkWidget *action_btn = app_tree->action_btn;
+  gtk_widget_add_css_class (action_btn, "battery-alert-action-btn");
 
   app_tree->btn_close = gtk_button_new_with_label ("Got it!");
   GtkWidget *close_btn = app_tree->btn_close;
@@ -316,7 +316,7 @@ static void on_activate (GtkApplication *app, gpointer user_data) {
   gtk_box_append (GTK_BOX (box_label), notice_label);
   gtk_box_append (GTK_BOX (box_label), label_info);
 
-  gtk_box_append (GTK_BOX (box_btns), sleep_btn);
+  gtk_box_append (GTK_BOX (box_btns), action_btn);
   gtk_box_append (GTK_BOX (box_btns), close_btn);
 
   gtk_box_append (GTK_BOX (box_main), box_label);
@@ -324,7 +324,7 @@ static void on_activate (GtkApplication *app, gpointer user_data) {
 
   gtk_window_set_child (GTK_WINDOW (window), box_main);
 
-  g_signal_connect_swapped (sleep_btn, "clicked", G_CALLBACK (cb_secondary_btn), app_ctx);
+  g_signal_connect_swapped (action_btn, "clicked", G_CALLBACK (cb_secondary_btn), app_ctx);
   g_signal_connect_swapped (
       close_btn,
       "clicked",
