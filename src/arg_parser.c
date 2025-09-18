@@ -88,19 +88,16 @@ char get_short_opt (const char *arg) {
   if (*opt != '-') return *opt;
   opt++;
 
-  if (strlen (opt) > 1) {
-    if (strcmp (opt, "help") == 0) return 'h';
-    if (strcmp (opt, "daemon") == 0) return 'D';
-    if (strcmp (opt, "styles") == 0) return 's';
-    if (strcmp (opt, "low") == 0) return 'l';
-    if (strcmp (opt, "risky") == 0) return 'r';
-    if (strcmp (opt, "btn") == 0) return 'b';
-    if (strcmp (opt, "btn-cmd") == 0) return 'B';
-    return '?';
-  } else
-    return '?';
+  if (strlen (opt) < 3) return '?';
+  if (strcmp (opt, "help") == 0) return 'h';
+  if (strcmp (opt, "daemon") == 0) return 'D';
+  if (strcmp (opt, "styles") == 0) return 's';
+  if (strcmp (opt, "low") == 0) return 'l';
+  if (strcmp (opt, "risky") == 0) return 'r';
+  if (strcmp (opt, "btn") == 0) return 'b';
+  if (strcmp (opt, "btn-cmd") == 0) return 'B';
 
-  return *opt;
+  return '?';
 }
 
 AppOpts *parse_arguments (int argc, char **argv) {
