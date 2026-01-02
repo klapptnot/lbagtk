@@ -46,7 +46,7 @@ all: release
 .PHONY: install
 install: release
 	@echo "Moving to /usr/bin/lbagtk..."
-	sudo mv ./build/$(PROJECT) /usr/bin/lbagtk
+	@sudo mv ./build/$(PROJECT) /usr/bin/lbagtk
 	@echo "Installation complete! Run with: lbagtk"
 
 .PHONY: run

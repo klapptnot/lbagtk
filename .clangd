@@ -2,6 +2,7 @@
 CompileFlags:
   Add:
     - -std=c23
+    - -xc
     - -I/usr/include/gtk-4.0
     - -I/usr/include/pango-1.0
     - -I/usr/include/fribidi
