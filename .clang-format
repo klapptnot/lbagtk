@@ -2,16 +2,16 @@
 Language: Cpp
 BasedOnStyle: Google
 IndentWidth: 2
-ColumnLimit: 92
+ContinuationIndentWidth: 2
+ColumnLimit: 96
+AccessModifierOffset: -4
 AllowShortFunctionsOnASingleLine: Empty
 BreakBeforeBraces: Attach
-BreakBeforeBinaryOperators: All
 NamespaceIndentation: All
 PointerAlignment: Left
 SortIncludes: true
-SpaceAfterTemplateKeyword: false
+SpaceBeforeCpp11BracedList: true
 SpaceBeforeParens: Always
-# SpaceBeforeParens: Custom
 # SpaceBeforeParensOptions:
 #   AfterControlStatements: true
 #   AfterForeachMacros: true
@@ -23,11 +23,53 @@ SpaceBeforeParens: Always
 #   AfterRequiresInClause: true
 #   AfterRequiresInExpression: true
 #   BeforeNonEmptyParentheses: true
-BinPackParameters: false
-BinPackArguments: false
+
+AlignEscapedNewlines: Left
+
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 1
+
+AlignConsecutiveBitFields:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: true
+  PadOperators: true
+
+AlignConsecutiveMacros:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: true
+  AlignFunctionPointers: false
+  PadOperators: true
+
+AlignConsecutiveShortCaseStatements:
+  Enabled: true
+  AcrossEmptyLines: true
+  AcrossComments: true
+  AlignCaseArrows: true
+  AlignCaseColons: false
+
+AlignOperands: AlignAfterOperator
 AlignAfterOpenBracket: BlockIndent
-AllowAllParametersOfDeclarationOnNextLine: true
-AllowAllArgumentsOnNextLine: false
+# Why Google style has this set to true?
+# I don't want to read that style guide,
+# neither the clang-format documentation
+AllowShortEnumsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Empty
+
+BinPackArguments: false
+BinPackLongBracedList: false
+BinPackParameters: OnePerLine
+BreakAfterAttributes: Leave
+# BreakAfterOpenBracketBracedList: true # clang-format v22
+BreakStringLiterals: true
+
+PackConstructorInitializers: Never
+
+# IndentPPDirectives: BeforeHash
+IndentGotoLabels: true
+InsertNewlineAtEOF: true
 
 TabWidth: 2
 UseTab: Never
